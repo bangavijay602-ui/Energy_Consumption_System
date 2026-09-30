@@ -1,0 +1,124 @@
+{
+  "selected_model": "XGBoost",
+  "selection_criterion": "MAE",
+  "detected_schema": {
+    "timestamp": "reading_time",
+    "consumption": "power_consumption",
+    "temperature": "temperature",
+    "humidity": "humidity"
+  },
+  "frequency_info": {
+    "name": "15-minute",
+    "pandas_alias": "15min",
+    "median_delta_seconds": 900.0,
+    "periods_per_day": 96,
+    "periods_per_week": 672,
+    "is_regular": true,
+    "irregular_gap_percentage": 0.0,
+    "recommended_lag_indices": {
+      "lag_1": 1,
+      "lag_4": 4,
+      "lag_8": 8,
+      "lag_day": 96,
+      "lag_week": 672
+    },
+    "resampling_recommended": false
+  },
+  "feature_config": {
+    "feature_columns": [
+      "temperature",
+      "humidity",
+      "hour",
+      "day",
+      "day_of_week",
+      "month",
+      "quarter",
+      "year",
+      "is_weekend",
+      "hour_sin",
+      "hour_cos",
+      "weekday_sin",
+      "weekday_cos",
+      "month_sin",
+      "month_cos",
+      "lag_1",
+      "lag_4",
+      "lag_8",
+      "lag_day",
+      "lag_week",
+      "rolling_mean_24",
+      "rolling_std_24",
+      "rolling_mean_96",
+      "rolling_std_96",
+      "rolling_min_96",
+      "rolling_max_96",
+      "temperature_lag_1",
+      "humidity_lag_1"
+    ],
+    "lag_indices": {
+      "lag_1": 1,
+      "lag_4": 4,
+      "lag_8": 8,
+      "lag_day": 96,
+      "lag_week": 672
+    },
+    "rolling_windows": {
+      "short": 24,
+      "long": 96
+    },
+    "weather_features": [
+      "temperature",
+      "humidity"
+    ]
+  },
+  "validation_metrics": {
+    "Naive Baseline": {
+      "model_name": "Naive Baseline",
+      "mae": 2.3397,
+      "rmse": 2.8647,
+      "mape": 5.58,
+      "wape": 5.23,
+      "r2": 0.9319,
+      "sample_count": 124
+    },
+    "Random Forest": {
+      "model_name": "Random Forest",
+      "mae": 1.7824,
+      "rmse": 2.2642,
+      "mape": 4.16,
+      "wape": 3.98,
+      "r2": 0.9574,
+      "sample_count": 124
+    },
+    "XGBoost": {
+      "model_name": "XGBoost",
+      "mae": 1.7269,
+      "rmse": 2.2263,
+      "mape": 4.03,
+      "wape": 3.86,
+      "r2": 0.9589,
+      "sample_count": 124
+    },
+    "SARIMA": {
+      "model_name": "SARIMA",
+      "mae": 13.9012,
+      "rmse": 17.4945,
+      "mape": 27.1,
+      "wape": 31.08,
+      "r2": -1.5401,
+      "sample_count": 124
+    }
+  },
+  "test_metrics": {
+    "model_name": "XGBoost",
+    "mae": 1.8294,
+    "rmse": 2.242,
+    "mape": 4.08,
+    "wape": 3.72,
+    "r2": 0.965,
+    "sample_count": 125
+  },
+  "train_rows": 579,
+  "val_rows": 124,
+  "test_rows": 125
+}

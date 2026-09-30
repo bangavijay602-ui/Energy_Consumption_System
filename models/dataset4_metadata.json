@@ -1,0 +1,115 @@
+{
+  "selected_model": "Random Forest",
+  "selection_criterion": "MAE",
+  "detected_schema": {
+    "timestamp": "date",
+    "consumption": "electricity_demand"
+  },
+  "frequency_info": {
+    "name": "daily",
+    "pandas_alias": "1D",
+    "median_delta_seconds": 86400.0,
+    "periods_per_day": 1,
+    "periods_per_week": 7,
+    "is_regular": true,
+    "irregular_gap_percentage": 0.0,
+    "recommended_lag_indices": {
+      "lag_1": 1,
+      "lag_2": 2,
+      "lag_week": 7,
+      "lag_14": 14,
+      "lag_month": 30
+    },
+    "resampling_recommended": false
+  },
+  "feature_config": {
+    "feature_columns": [
+      "hour",
+      "day",
+      "day_of_week",
+      "month",
+      "quarter",
+      "year",
+      "is_weekend",
+      "hour_sin",
+      "hour_cos",
+      "weekday_sin",
+      "weekday_cos",
+      "month_sin",
+      "month_cos",
+      "lag_1",
+      "lag_2",
+      "lag_week",
+      "lag_14",
+      "lag_month",
+      "rolling_mean_3",
+      "rolling_std_3",
+      "rolling_mean_7",
+      "rolling_std_7",
+      "rolling_min_7",
+      "rolling_max_7"
+    ],
+    "lag_indices": {
+      "lag_1": 1,
+      "lag_2": 2,
+      "lag_week": 7,
+      "lag_14": 14,
+      "lag_month": 30
+    },
+    "rolling_windows": {
+      "short": 3,
+      "long": 7
+    },
+    "weather_features": []
+  },
+  "validation_metrics": {
+    "Naive Baseline": {
+      "model_name": "Naive Baseline",
+      "mae": 23.78,
+      "rmse": 28.6006,
+      "mape": 6.18,
+      "wape": 6.12,
+      "r2": -0.9728,
+      "sample_count": 50
+    },
+    "Random Forest": {
+      "model_name": "Random Forest",
+      "mae": 15.9212,
+      "rmse": 20.6836,
+      "mape": 4.19,
+      "wape": 4.1,
+      "r2": -0.0317,
+      "sample_count": 50
+    },
+    "XGBoost": {
+      "model_name": "XGBoost",
+      "mae": 18.3225,
+      "rmse": 23.3081,
+      "mape": 4.86,
+      "wape": 4.72,
+      "r2": -0.3102,
+      "sample_count": 50
+    },
+    "SARIMA": {
+      "model_name": "SARIMA",
+      "mae": 17.1859,
+      "rmse": 21.2824,
+      "mape": 4.41,
+      "wape": 4.43,
+      "r2": -0.0924,
+      "sample_count": 50
+    }
+  },
+  "test_metrics": {
+    "model_name": "Random Forest",
+    "mae": 24.7389,
+    "rmse": 31.0106,
+    "mape": 5.67,
+    "wape": 5.81,
+    "r2": 0.109,
+    "sample_count": 51
+  },
+  "train_rows": 234,
+  "val_rows": 50,
+  "test_rows": 51
+}
