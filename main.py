@@ -4,7 +4,8 @@ import argparse
 import json
 import os
 import sys
-from typing import List
+from typing import Optional
+
 import pandas as pd
 
 from pipeline import EnergyForecastingPipeline, PipelineOutput
