@@ -8,7 +8,7 @@ import ForecastChart from './components/ForecastChart';
 import ForecastTable from './components/ForecastTable';
 import { AlertCircle, CheckCircle2, Zap } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://energy-consumption-system.onrender.com';
 
 export default function App() {
   const [file, setFile] = useState(null);
