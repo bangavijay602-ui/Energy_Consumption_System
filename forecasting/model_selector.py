@@ -56,7 +56,7 @@ class ModelSelector:
             "SARIMA": SARIMAForecaster(
                 order=(1, 1, 1),
                 seasonal_order=(1, 0, 0, min(seasonal_period, 24)),
-                use_exog=True,
+                use_exog=False,
             ),
         }
 
