@@ -286,6 +286,10 @@ class SchemaDetector:
             clean_name = str(col).strip()
             name_score = self._match_name_patterns(clean_name, self.TARGET_PATTERNS)
 
+            # Reject columns that do not look like energy-related targets
+            if name_score < 0.5:
+                continue
+
             # Check value distribution
             valid_nums = pd.to_numeric(series, errors="coerce").dropna()
             if len(valid_nums) == 0:
@@ -408,24 +412,12 @@ class SchemaDetector:
             target_conf = 1.0
         else:
             if not target_candidates or target_candidates[0].confidence < self.min_confidence:
-                # If only 2 columns exist and one is timestamp and other is numeric, choose other with modest confidence
-                remaining = [c for c in df.columns if str(c) != selected_ts and pd.api.types.is_numeric_dtype(df[c])]
-                if len(remaining) == 1:
-                    selected_target = str(remaining[0])
-                    target_conf = 0.50
-                    target_candidates.append(
-                        ColumnCandidate(
-                            column_name=selected_target,
-                            confidence=target_conf,
-                            reasons=["Only remaining numeric column in 2-column dataset"],
-                        )
-                    )
-                else:
-                    raise SchemaDetectionError(
-                        f"No suitable energy consumption target column detected among {list(df.columns)}. "
-                        "Ensure your dataset contains an energy, consumption, load, demand, power, or kWh column."
-                    )
-            else:
+                raise SchemaDetectionError(
+                    f"No suitable energy consumption target column detected among {list(df.columns)}. "
+                    "Ensure your dataset contains an energy, consumption, load, demand, power, "
+                    "electricity, kWh, kW, MW, or MWh column."
+                )
+
                 # Check target ambiguity
                 if (
                     len(target_candidates) > 1
