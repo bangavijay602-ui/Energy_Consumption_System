@@ -365,93 +365,245 @@ class SchemaDetector:
 
         Args:
             df: Input raw DataFrame.
-            override_timestamp: User-specified timestamp column name if confirming ambiguity.
-            override_consumption: User-specified target column name if confirming ambiguity.
+            override_timestamp: User-specified timestamp column name.
+            override_consumption: User-specified target column name.
 
         Returns:
-            SchemaDetectionResult containing selected schema and detailed candidate confidence scores.
+            SchemaDetectionResult containing selected schema and candidates.
 
         Raises:
-            SchemaDetectionError: When no valid timestamp or target column can be discovered.
-            AmbiguousSchemaError: When top candidates are too close in confidence.
+            SchemaDetectionError: When no valid timestamp or target can be discovered.
+            AmbiguousSchemaError: When required candidates are too close.
         """
-        # 1. Timestamp Detection
+
+        # ============================================================
+        # 1. TIMESTAMP DETECTION
+        # ============================================================
         ts_candidates = self.detect_timestamp_candidates(df)
+
         if override_timestamp:
             if override_timestamp not in df.columns:
-                raise SchemaDetectionError(f"Provided override timestamp '{override_timestamp}' not in columns.")
+                raise SchemaDetectionError(
+                    f"Provided override timestamp '{override_timestamp}' not in columns."
+                )
+
             selected_ts = override_timestamp
             ts_conf = 1.0
+
         else:
             if not ts_candidates or ts_candidates[0].confidence < self.min_confidence:
                 raise SchemaDetectionError(
                     f"No suitable timestamp column detected among {list(df.columns)}. "
-                    "Ensure your dataset contains a datetime, date, timestamp, or reading_time column."
+                    "Ensure your dataset contains a datetime, date, timestamp, "
+                    "or reading_time column."
                 )
-            
-            # Check ambiguity
+
+            # Check timestamp ambiguity
             if (
                 len(ts_candidates) > 1
-                and (ts_candidates[0].confidence - ts_candidates[1].confidence) < self.ambiguity_delta
+                and (
+                    ts_candidates[0].confidence
+                    - ts_candidates[1].confidence
+                ) < self.ambiguity_delta
                 and ts_candidates[1].confidence >= 0.7
             ):
                 raise AmbiguousSchemaError(
                     "timestamp",
-                    [(c.column_name, c.confidence) for c in ts_candidates[:3]],
+                    [
+                        (c.column_name, c.confidence)
+                        for c in ts_candidates[:3]
+                    ],
                 )
 
             selected_ts = ts_candidates[0].column_name
             ts_conf = ts_candidates[0].confidence
 
-        # 2. Target Detection
-        target_candidates = self.detect_target_candidates(df, excluded_cols=[selected_ts])
+        # ============================================================
+        # 2. TARGET / ENERGY CONSUMPTION DETECTION
+        # ============================================================
 
+        target_candidates = self.detect_target_candidates(
+            df,
+            excluded_cols=[selected_ts],
+        )
+
+        # IMPORTANT:
+        # Always initialize these variables before any conditional branch.
+        # This prevents:
+        # "cannot access local variable 'selected_target'"
+        selected_target = None
+        target_conf = 0.0
+
+        # ------------------------------------------------------------
+        # Case A: User explicitly supplied target column
+        # ------------------------------------------------------------
         if override_consumption:
+
             if override_consumption not in df.columns:
                 raise SchemaDetectionError(
-                    f"Provided override consumption '{override_consumption}' not in columns."
+                    f"Provided override consumption "
+                    f"'{override_consumption}' not in columns."
                 )
+
             selected_target = override_consumption
             target_conf = 1.0
 
-        else:
-            # A valid energy-related target MUST be detected.
-            # Do not automatically accept an arbitrary numeric column.
-            if not target_candidates or target_candidates[0].confidence < self.min_confidence:
-                raise SchemaDetectionError(
-                    f"No suitable energy consumption target column detected among {list(df.columns)}. "
-                    "Ensure your dataset contains an energy, consumption, load, demand, power, "
-                    "electricity, kWh, kW, MW, or MWh column."
-                )
-
-            # Check target ambiguity
-            if (
-                len(target_candidates) > 1
-                and (target_candidates[0].confidence - target_candidates[1].confidence) < self.ambiguity_delta
-                and target_candidates[1].confidence >= 0.7
+            # Add override column to candidates if not already present
+            if not any(
+                c.column_name == selected_target
+                for c in target_candidates
             ):
-                raise AmbiguousSchemaError(
-                    "consumption",
-                    [(c.column_name, c.confidence) for c in target_candidates[:3]],
+                target_candidates.insert(
+                    0,
+                    ColumnCandidate(
+                        column_name=selected_target,
+                        confidence=target_conf,
+                        reasons=["Explicitly provided target column"],
+                    ),
                 )
 
-            # Select the detected energy target
-            selected_target = target_candidates[0].column_name
-            target_conf = target_candidates[0].confidence
+        # ------------------------------------------------------------
+        # Case B: Automatically detect target
+        # ------------------------------------------------------------
+        else:
 
-        # 3. Optional Environmental Columns
-        used_cols = [selected_ts, selected_target]
-        optional_matches = self.detect_optional_columns(df, excluded_cols=used_cols)
+            # --------------------------------------------------------
+            # B1. Strong energy-related target detected
+            # --------------------------------------------------------
+            if (
+                target_candidates
+                and target_candidates[0].confidence >= self.min_confidence
+            ):
+
+                # Check target ambiguity
+                if (
+                    len(target_candidates) > 1
+                    and (
+                        target_candidates[0].confidence
+                        - target_candidates[1].confidence
+                    ) < self.ambiguity_delta
+                    and target_candidates[1].confidence >= 0.7
+                ):
+                    raise AmbiguousSchemaError(
+                        "consumption",
+                        [
+                            (c.column_name, c.confidence)
+                            for c in target_candidates[:3]
+                        ],
+                    )
+
+                selected_target = target_candidates[0].column_name
+                target_conf = target_candidates[0].confidence
+
+            # --------------------------------------------------------
+            # B2. Fallback for simple 2-column datasets
+            #
+            # Example:
+            # timestamp | value
+            #
+            # If one column is timestamp and the other is numeric,
+            # use the numeric column as the target.
+            # --------------------------------------------------------
+            else:
+
+                remaining_numeric = [
+                    c
+                    for c in df.columns
+                    if str(c) != str(selected_ts)
+                    and pd.api.types.is_numeric_dtype(df[c])
+                ]
+
+                if len(remaining_numeric) == 1:
+
+                    selected_target = str(remaining_numeric[0])
+                    target_conf = 0.50
+
+                    target_candidates.append(
+                        ColumnCandidate(
+                            column_name=selected_target,
+                            confidence=target_conf,
+                            reasons=[
+                                "Only remaining numeric column "
+                                "in dataset"
+                            ],
+                        )
+                    )
+
+                # ----------------------------------------------------
+                # B3. No valid target found
+                # ----------------------------------------------------
+                else:
+
+                    raise SchemaDetectionError(
+                        f"No suitable energy consumption target column "
+                        f"detected among {list(df.columns)}. "
+                        "Ensure your dataset contains an energy, "
+                        "consumption, load, demand, power, electricity, "
+                        "kWh, kW, MW, or MWh column."
+                    )
+
+        # ============================================================
+        # 3. FINAL SAFETY CHECK
+        # ============================================================
+
+        # This makes absolutely sure selected_target can never be
+        # used before receiving a value.
+        if selected_target is None:
+            raise SchemaDetectionError(
+                "Target column could not be selected after schema detection."
+            )
+
+        # ============================================================
+        # 4. OPTIONAL ENVIRONMENTAL COLUMNS
+        # ============================================================
+
+        used_cols = [
+            selected_ts,
+            selected_target,
+        ]
+
+        optional_matches = self.detect_optional_columns(
+            df,
+            excluded_cols=used_cols,
+        )
+
+        # ============================================================
+        # 5. BUILD DETECTED SCHEMA
+        # ============================================================
 
         detected_schema = DetectedSchema(
             timestamp=selected_ts,
             consumption=selected_target,
-            temperature=optional_matches["temperature"].column_name if optional_matches.get("temperature") else None,
-            humidity=optional_matches["humidity"].column_name if optional_matches.get("humidity") else None,
-            wind_speed=optional_matches["wind_speed"].column_name if optional_matches.get("wind_speed") else None,
-            pressure=optional_matches["pressure"].column_name if optional_matches.get("pressure") else None,
-            holiday=optional_matches["holiday"].column_name if optional_matches.get("holiday") else None,
+            temperature=(
+                optional_matches["temperature"].column_name
+                if optional_matches.get("temperature")
+                else None
+            ),
+            humidity=(
+                optional_matches["humidity"].column_name
+                if optional_matches.get("humidity")
+                else None
+            ),
+            wind_speed=(
+                optional_matches["wind_speed"].column_name
+                if optional_matches.get("wind_speed")
+                else None
+            ),
+            pressure=(
+                optional_matches["pressure"].column_name
+                if optional_matches.get("pressure")
+                else None
+            ),
+            holiday=(
+                optional_matches["holiday"].column_name
+                if optional_matches.get("holiday")
+                else None
+            ),
         )
+
+        # ============================================================
+        # 6. RETURN RESULT
+        # ============================================================
 
         return SchemaDetectionResult(
             detected_schema=detected_schema,
