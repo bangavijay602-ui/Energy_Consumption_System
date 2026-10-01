@@ -405,12 +405,18 @@ class SchemaDetector:
 
         # 2. Target Detection
         target_candidates = self.detect_target_candidates(df, excluded_cols=[selected_ts])
+
         if override_consumption:
             if override_consumption not in df.columns:
-                raise SchemaDetectionError(f"Provided override consumption '{override_consumption}' not in columns.")
+                raise SchemaDetectionError(
+                    f"Provided override consumption '{override_consumption}' not in columns."
+                )
             selected_target = override_consumption
             target_conf = 1.0
+
         else:
+            # A valid energy-related target MUST be detected.
+            # Do not automatically accept an arbitrary numeric column.
             if not target_candidates or target_candidates[0].confidence < self.min_confidence:
                 raise SchemaDetectionError(
                     f"No suitable energy consumption target column detected among {list(df.columns)}. "
@@ -418,19 +424,20 @@ class SchemaDetector:
                     "electricity, kWh, kW, MW, or MWh column."
                 )
 
-                # Check target ambiguity
-                if (
-                    len(target_candidates) > 1
-                    and (target_candidates[0].confidence - target_candidates[1].confidence) < self.ambiguity_delta
-                    and target_candidates[1].confidence >= 0.7
-                ):
-                    raise AmbiguousSchemaError(
-                        "consumption",
-                        [(c.column_name, c.confidence) for c in target_candidates[:3]],
-                    )
+            # Check target ambiguity
+            if (
+                len(target_candidates) > 1
+                and (target_candidates[0].confidence - target_candidates[1].confidence) < self.ambiguity_delta
+                and target_candidates[1].confidence >= 0.7
+            ):
+                raise AmbiguousSchemaError(
+                    "consumption",
+                    [(c.column_name, c.confidence) for c in target_candidates[:3]],
+                )
 
-                selected_target = target_candidates[0].column_name
-                target_conf = target_candidates[0].confidence
+            # Select the detected energy target
+            selected_target = target_candidates[0].column_name
+            target_conf = target_candidates[0].confidence
 
         # 3. Optional Environmental Columns
         used_cols = [selected_ts, selected_target]
